@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LAN page modelled on ES: title + 新建 row, device list, big blue 扫描 button. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:background="@color/page_bg"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/page_bg"
+        android:paddingStart="16dp"
+        android:paddingEnd="12dp"
+        android:layout_width="match_parent"
+        android:layout_height="46dp">
+
+        <TextView
+            android:id="@+id/tvSubnet"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/tab_lan"
+            android:textColor="@color/grey_600"
+            android:textSize="13sp"
+            android:singleLine="true" />
+
+        <TextView
+            android:id="@+id/btnAdd"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:minWidth="62dp"
+            android:gravity="center"
+            android:background="@drawable/bg_card_white"
+            android:clickable="true"
+            android:focusable="true"
+            android:text="@string/lan_add"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <ListView
+            android:id="@+id/listView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@color/divider"
+            android:dividerHeight="1dp" />
+
+        <TextView
+            android:id="@+id/tvEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="@string/lan_none"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/btnScan"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="14dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="12dp"
+        android:gravity="center"
+        android:background="@drawable/bg_blue_button"
+        android:clickable="true"
+        android:focusable="true"
+        android:text="@string/lan_scan"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+</LinearLayout>

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Browser page (v4): ES-style breadcrumb path bar, optional search row, file list and a
+     contextual selection bar. The blue tab strip and the five-slot toolbar belong to the
+     Activity, so this page has no app bar of its own and no right-hand preview pane. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:background="@color/white"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <include
+        layout="@layout/view_path_bar"
+        android:id="@+id/pathBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <ProgressBar
+        android:id="@+id/progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/searchRow"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/page_bg"
+        android:paddingStart="12dp"
+        android:paddingEnd="4dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone">
+
+        <EditText
+            android:id="@+id/etSearch"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="@string/search_hint"
+            android:inputType="text"
+            android:singleLine="true"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSearchMode"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:minWidth="0dp"
+            android:text="@string/search_mode_filter"
+            android:textSize="12sp"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSearchGo"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:minWidth="0dp"
+            android:text="@string/search_go"
+            android:textSize="12sp"
+            android:visibility="gone"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:scrollbars="vertical" />
+
+        <TextView
+            android:id="@+id/tvEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="@string/empty_folder"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/text_title"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <!-- Shown only while multi-select is active (long press a row). -->
+    <LinearLayout
+        android:id="@+id/selectionBar"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/es_blue_light"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:layout_width="match_parent"
+        android:layout_height="46dp"
+        android:visibility="gone">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSelAll"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:minWidth="0dp"
+            android:text="@string/sel_all"
+            android:textSize="12sp"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
+
+        <TextView
+            android:id="@+id/tvSelected"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:textColor="@color/text_primary"
+            android:textSize="12sp"
+            android:singleLine="true" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDownload"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:minWidth="0dp"
+            android:text="@string/sel_download"
+            android:textSize="12sp"
+            app:icon="@drawable/ic_download"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:minWidth="0dp"
+            android:text="@string/sel_delete"
+            android:textSize="12sp"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCancelSel"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:minWidth="0dp"
+            android:text="@string/sel_none"
+            android:textSize="12sp"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
+    </LinearLayout>
+</LinearLayout>

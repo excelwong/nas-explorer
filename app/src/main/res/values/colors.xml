@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- legacy palette (kept for resources that still reference it) -->
+    <color name="purple_200">#FF7C4DFF</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="grey_300">#FFE0E0E0</color>
+    <color name="grey_600">#FF757575</color>
+    <color name="green_500">#FF4CAF50</color>
+    <color name="red_500">#FFF44336</color>
+    <color name="blue_500">#FF2196F3</color>
+
+    <!-- ES-style palette: bright blue chrome, near-white content, dark text -->
+    <color name="es_blue">#FF2C7CF3</color>
+    <color name="es_blue_dark">#FF1665D8</color>
+    <color name="es_blue_deep">#FF0F4FB0</color>
+    <color name="es_blue_light">#FFE9F2FF</color>
+    <color name="es_tab_bg">#33FFFFFF</color>
+    <color name="es_tab_active">#66FFFFFF</color>
+    <color name="text_primary">#FF2E2E2E</color>
+    <color name="text_secondary">#FF9B9B9B</color>
+    <color name="text_hint">#FFC4C4C4</color>
+    <color name="divider">#FFEDEDED</color>
+    <color name="page_bg">#FFF6F7F9</color>
+    <color name="card_bg">#FFFFFFFF</color>
+    <color name="folder_blue">#FF5AC8FA</color>
+    <color name="scrim">#88000000</color>
+
+    <!-- home category tiles -->
+    <color name="cat_music">#FF2E9BF0</color>
+    <color name="cat_video">#FF35A9EE</color>
+    <color name="cat_apps">#FF4A90E2</color>
+    <color name="cat_image">#FF2C8BE8</color>
+    <color name="cat_clean">#FFB78A62</color>
+    <color name="cat_cloud">#FF3FC0AE</color>
+    <color name="cat_log">#FF7A86A8</color>
+    <color name="cat_cast">#FF3CB878</color>
+</resources>

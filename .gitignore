@@ -1,0 +1,27 @@
+# Gradle / build outputs
+.gradle/
+build/
+**/build/
+.cxx/
+captures/
+.externalNativeBuild/
+
+# Local machine configuration (contains absolute SDK path)
+local.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Signed / packaged artifacts
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.log

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BottomNavigationView only supports up to five items. The rail gets the full six-item menu. -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_nas"
+        android:icon="@android:drawable/ic_menu_compass"
+        android:title="@string/nav_nas" />
+    <item
+        android:id="@+id/nav_local"
+        android:icon="@android:drawable/ic_menu_save"
+        android:title="@string/nav_local" />
+    <item
+        android:id="@+id/nav_bookmarks"
+        android:icon="@android:drawable/ic_menu_agenda"
+        android:title="@string/nav_bookmarks" />
+    <item
+        android:id="@+id/nav_lan"
+        android:icon="@android:drawable/ic_menu_search"
+        android:title="@string/nav_lan" />
+    <item
+        android:id="@+id/nav_apps"
+        android:icon="@android:drawable/ic_menu_manage"
+        android:title="@string/nav_apps" />
+</menu>

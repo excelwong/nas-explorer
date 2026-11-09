@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Media prepared for external playback lives under <external-files>/.nasopen -->
+    <external-files-path
+        name="nasopen"
+        path=".nasopen" />
+    <!-- Local file browser: allow opening files from shared external storage via content:// -->
+    <external-path
+        name="external"
+        path="." />
+</paths>

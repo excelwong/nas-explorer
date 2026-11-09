@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ES-style chrome: blue top bar with closable window tabs, page container, fixed five-slot
+     bottom toolbar, slide-out left drawer, and an overlay top bar used during multi-selection. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:id="@+id/mainContent"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:id="@+id/topBar"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@color/es_blue"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/app_bar_height"
+            android:paddingStart="6dp"
+            android:paddingEnd="4dp">
+
+            <ImageView
+                android:id="@+id/btnMenu"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
+                android:padding="10dp"
+                android:src="@drawable/ic_menu"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:contentDescription="@string/drawer_library" />
+
+            <HorizontalScrollView
+                android:id="@+id/tabScroll"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:scrollbars="none"
+                android:fillViewport="false">
+
+                <LinearLayout
+                    android:id="@+id/tabStrip"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent" />
+            </HorizontalScrollView>
+
+            <ImageView
+                android:id="@+id/btnNewTab"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:padding="6dp"
+                android:src="@drawable/ic_action_add"
+                android:tint="@color/white"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:contentDescription="@string/tab_new_title" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/pageContainer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@color/white" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/divider" />
+
+        <LinearLayout
+            android:id="@+id/toolBar"
+            android:orientation="horizontal"
+            android:background="@color/white"
+            android:gravity="center_vertical"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/toolbar_height" />
+    </LinearLayout>
+
+    <!-- Multi-select: replaces the blue tab strip with "N/M  全选 / 区间选择 / 取消". -->
+    <LinearLayout
+        android:id="@+id/selectionTopBar"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/es_blue"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/app_bar_height"
+        android:layout_gravity="top"
+        android:paddingStart="18dp"
+        android:paddingEnd="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvSelCount"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/white"
+            android:textSize="19sp"
+            android:textStyle="bold"
+            android:singleLine="true" />
+
+        <LinearLayout
+            android:id="@+id/btnSelAll"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:layout_width="64dp"
+            android:layout_height="match_parent">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_sel_all"
+                android:tint="@color/white"
+                android:contentDescription="@string/sel_select_all" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/sel_select_all"
+                android:textColor="@color/white"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnSelRange"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:layout_width="70dp"
+            android:layout_height="match_parent">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_sel_range"
+                android:tint="@color/white"
+                android:contentDescription="@string/sel_range" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/sel_range"
+                android:textColor="@color/white"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnSelCancel"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:layout_width="56dp"
+            android:layout_height="match_parent">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_sel_cancel"
+                android:tint="@color/white"
+                android:contentDescription="@string/sel_cancel" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/sel_cancel"
+                android:textColor="@color/white"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <View
+        android:id="@+id/drawerScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/scrim"
+        android:visibility="gone"
+        android:clickable="true" />
+
+    <include
+        layout="@layout/drawer_panel"
+        android:id="@+id/drawerPanel"
+        android:layout_width="300dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:visibility="gone" />
+</FrameLayout>

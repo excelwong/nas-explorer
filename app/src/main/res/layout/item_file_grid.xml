@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Large-icon view: adaptive grid on wide / unfolded screens. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:background="@color/white"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingTop="10dp"
+    android:paddingBottom="8dp">
+
+    <LinearLayout
+        android:id="@+id/rowMain"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:background="?attr/selectableItemBackground"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="4dp">
+
+        <ImageView
+            android:id="@+id/imgIcon"
+            android:layout_width="88dp"
+            android:layout_height="88dp"
+            android:scaleType="centerInside"
+            android:background="@drawable/bg_thumb"
+            android:src="@drawable/ic_folder_blue"
+            android:contentDescription="@string/folder" />
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp">
+
+            <TextView
+                android:id="@+id/tvName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="文件名"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    android:ellipsize="end"
+                    android:maxLines="2" />
+
+                <TextView
+                    android:id="@+id/tvNew"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/badge_new"
+                    android:text="@string/badge_new"
+                    android:textColor="@color/white"
+                    android:textSize="9sp"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/cbSelect"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:src="@drawable/ic_check_off"
+                    android:visibility="gone"
+                    android:contentDescription="@string/menu_select_all" />
+            </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvMeta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp"
+            android:singleLine="true" />
+
+        <TextView android:id="@+id/tvType" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+        <TextView android:id="@+id/tvSize" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+        <TextView android:id="@+id/tvTime" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/btnOpen"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        android:contentDescription="@string/open_play" />
+
+</LinearLayout>

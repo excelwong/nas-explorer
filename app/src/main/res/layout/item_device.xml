@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@color/white"
+    android:layout_width="match_parent"
+    android:layout_height="68dp"
+    android:paddingStart="14dp"
+    android:paddingEnd="12dp">
+
+    <ImageView
+        android:id="@+id/imgDevice"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:src="@drawable/ic_cloud"
+        android:tint="@color/grey_600"
+        android:contentDescription="@string/tab_lan" />
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="14dp">
+
+        <TextView
+            android:id="@+id/tvDeviceName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_primary"
+            android:textSize="15sp"
+            android:singleLine="true" />
+
+        <TextView
+            android:id="@+id/tvDeviceIp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:src="@drawable/ic_dot"
+        android:contentDescription="@string/tab_lan" />
+</LinearLayout>

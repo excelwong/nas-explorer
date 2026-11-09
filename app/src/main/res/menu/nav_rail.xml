@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Six destinations. The phone's BottomNavigationView removes "回收站" (available from the
+     browser's settings menu instead) to stay within its five-item limit. -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_nas"
+        android:icon="@android:drawable/ic_menu_compass"
+        android:title="@string/nav_nas" />
+    <item
+        android:id="@+id/nav_local"
+        android:icon="@android:drawable/ic_menu_save"
+        android:title="@string/nav_local" />
+    <item
+        android:id="@+id/nav_bookmarks"
+        android:icon="@android:drawable/ic_menu_agenda"
+        android:title="@string/nav_bookmarks" />
+    <item
+        android:id="@+id/nav_lan"
+        android:icon="@android:drawable/ic_menu_search"
+        android:title="@string/nav_lan" />
+    <item
+        android:id="@+id/nav_recycle"
+        android:icon="@android:drawable/ic_menu_delete"
+        android:title="@string/nav_recycle" />
+    <item
+        android:id="@+id/nav_apps"
+        android:icon="@android:drawable/ic_menu_manage"
+        android:title="@string/nav_apps" />
+</menu>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v4.1.5: 工具 group removed entirely; 网络 only keeps 局域网.
+     v4.1.7: bottom shortcut row (消息 / 主题 / 设置 / 历史记录) removed. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:background="@color/white"
+    android:layout_width="300dp"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="8dp">
+
+            <!-- 库 -->
+            <LinearLayout
+                android:id="@+id/headLibrary"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp">
+                <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_cat_log" android:tint="@color/grey_600" />
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="22dp" android:text="@string/drawer_library" android:textColor="@color/text_primary" android:textSize="15sp" />
+                <ImageView android:id="@+id/arrowLibrary" android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_chevron_down" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/boxLibrary" android:orientation="vertical" android:background="@color/page_bg" android:layout_width="match_parent" android:layout_height="wrap_content">
+                <TextView android:id="@+id/itemHome" android:layout_width="match_parent" android:layout_height="46dp" android:gravity="center_vertical" android:paddingStart="60dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:text="@string/drawer_home" android:textColor="@color/grey_600" android:textSize="14sp" />
+                <TextView android:id="@+id/itemLocal" android:layout_width="match_parent" android:layout_height="46dp" android:gravity="center_vertical" android:paddingStart="60dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:text="@string/drawer_local" android:textColor="@color/grey_600" android:textSize="14sp" />
+                <TextView android:id="@+id/itemBookmarks" android:layout_width="match_parent" android:layout_height="46dp" android:gravity="center_vertical" android:paddingStart="60dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:text="@string/drawer_bookmarks" android:textColor="@color/grey_600" android:textSize="14sp" />
+                <TextView android:id="@+id/itemRecycle" android:layout_width="match_parent" android:layout_height="46dp" android:gravity="center_vertical" android:paddingStart="60dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:text="@string/drawer_recycle" android:textColor="@color/grey_600" android:textSize="14sp" />
+            </LinearLayout>
+
+            <!-- 网络：仅局域网 -->
+            <LinearLayout
+                android:id="@+id/headNetwork"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp">
+                <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_cloud" android:tint="@color/grey_600" />
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="22dp" android:text="@string/drawer_network" android:textColor="@color/text_primary" android:textSize="15sp" />
+                <ImageView android:id="@+id/arrowNetwork" android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_chevron_down" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/boxNetwork" android:orientation="vertical" android:background="@color/page_bg" android:layout_width="match_parent" android:layout_height="wrap_content">
+                <TextView android:id="@+id/itemLan" android:layout_width="match_parent" android:layout_height="46dp" android:gravity="center_vertical" android:paddingStart="60dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:text="@string/drawer_lan" android:textColor="@color/grey_600" android:textSize="14sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
