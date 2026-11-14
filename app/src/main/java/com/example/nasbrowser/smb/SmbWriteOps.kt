@@ -58,6 +58,19 @@ object SmbWriteOps {
         if (entry.isDirectory) ds.rmdir(path, true) else ds.rm(path)
     }
 
+    /** True when a file or folder with this name already exists in the share. */
+    fun exists(ds: DiskShare, path: String): Boolean = try {
+        val p = smbPath(path)
+        ds.fileExists(p) || ds.folderExists(p)
+    } catch (_: Exception) {
+        false
+    }
+
+    /** Best-effort removal of a half-written destination after the user cancels a transfer. */
+    fun removeFile(ds: DiskShare, parent: String, name: String) {
+        try { ds.rm(smbPath(join(parent, name))) } catch (_: Exception) {}
+    }
+
     private fun open(ds: DiskShare, path: String, isDir: Boolean): DiskEntry {
         val p = smbPath(path)
         val opts = if (isDir) {
@@ -101,7 +114,13 @@ object SmbWriteOps {
     }
 
     /** Stream a local file into a new (or overwritten) remote file, 1 MB chunks. */
-    fun upload(ds: DiskShare, parent: String, name: String, input: InputStream) {
+    fun upload(
+        ds: DiskShare,
+        parent: String,
+        name: String,
+        input: InputStream,
+        onBytes: ((Long) -> Unit)? = null
+    ) {
         val remote = ds.openFile(
             smbPath(join(parent, name)),
             writeMasks,
@@ -111,14 +130,29 @@ object SmbWriteOps {
             EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE)
         )
         try {
-            remote.outputStream.use { out -> input.use { src -> src.copyTo(out, 1024 * 1024) } }
+            remote.outputStream.use { out ->
+                input.use { src ->
+                    val buf = ByteArray(1024 * 1024)
+                    while (true) {
+                        val n = src.read(buf)
+                        if (n <= 0) break
+                        out.write(buf, 0, n)
+                        onBytes?.invoke(n.toLong())
+                    }
+                }
+            }
         } finally {
             try { remote.close() } catch (_: Exception) {}
         }
     }
 
-    /** Server-side file copy in 1 MB chunks; used by 复制 / 移动到. */
-    fun copyFile(ds: DiskShare, srcPath: String, dstPath: String) {
+    /** Server-side file copy in 1 MB chunks; used by 复制 / 移动到 and clipboard paste. */
+    fun copyFile(
+        ds: DiskShare,
+        srcPath: String,
+        dstPath: String,
+        onBytes: ((Long) -> Unit)? = null
+    ) {
         val src = ds.openFile(
             smbPath(srcPath), readMasks, normalAttrs, shareAccess,
             SMB2CreateDisposition.FILE_OPEN,
@@ -130,7 +164,17 @@ object SmbWriteOps {
             EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE)
         )
         try {
-            src.inputStream.use { input -> dst.outputStream.use { out -> input.copyTo(out, 1024 * 1024) } }
+            src.inputStream.use { input ->
+                dst.outputStream.use { out ->
+                    val buf = ByteArray(1024 * 1024)
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n <= 0) break
+                        out.write(buf, 0, n)
+                        onBytes?.invoke(n.toLong())
+                    }
+                }
+            }
         } finally {
             try { src.close() } catch (_: Exception) {}
             try { dst.close() } catch (_: Exception) {}

@@ -19,6 +19,15 @@ import com.example.nasbrowser.smb.SmbEntry
 import com.example.nasbrowser.smb.SmbQueryOps
 import com.example.nasbrowser.smb.SmbShareLister
 import com.example.nasbrowser.smb.SmbWriteOps
+import com.example.nasbrowser.util.ClipboardState
+import com.example.nasbrowser.util.ConflictAnswer
+import com.example.nasbrowser.util.ConflictDecision
+import com.example.nasbrowser.util.CrossPasteResult
+import com.example.nasbrowser.util.PasteCancelledException
+import com.example.nasbrowser.util.PasteProgress
+import com.example.nasbrowser.util.PasteSpec
+import com.example.nasbrowser.util.PasteSummary
+import com.example.nasbrowser.util.PasteTaskItem
 import com.example.nasbrowser.util.PrefsStore
 import com.example.nasbrowser.util.RecycleItem
 import com.example.nasbrowser.util.RecycleStore
@@ -602,6 +611,436 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    /**
+     * v4.1.11: unified clipboard paste engine for all four routes
+     * (NAS->NAS, device->device, device->NAS, NAS->device).
+     *
+     * For every item it checks the destination, asks the UI about a name collision (the UI
+     * owns the "应用到全部" policy), streams the bytes with a per-chunk progress callback and,
+     * on a CUT, removes the source only after the destination is complete. 取消 aborts between
+     * chunks; already finished items are kept, exactly like ES / Windows Explorer.
+     */
+    suspend fun runPasteTransfer(
+        clip: ClipboardState,
+        spec: PasteSpec,
+        ask: suspend (String) -> ConflictAnswer?,
+        report: (PasteProgress) -> Unit,
+        cancelled: () -> Boolean
+    ): PasteSummary = withContext(Dispatchers.IO) {
+        val src = clip.source
+        val p = pool
+        val share = if (spec.targetLocal) src.share else _currentShare.value.orEmpty()
+        val targetSmbDir = spec.targetSmbDir.trimEnd('/')
+        val targetDir = spec.targetDir
+        val bothLocal = src.local && spec.targetLocal
+
+        if (!bothLocal && p == null) {
+            return@withContext PasteSummary(0, 0, spec.items.size, "尚未连接 NAS", false)
+        }
+        if (!spec.targetLocal && share.isBlank()) {
+            return@withContext PasteSummary(0, 0, spec.items.size, "尚未进入共享目录", false)
+        }
+        if (spec.targetLocal && targetDir == null) {
+            return@withContext PasteSummary(0, 0, spec.items.size, "未指定本机目标目录", false)
+        }
+        if (spec.targetLocal && !src.local && src.host.isNotBlank() &&
+            _connection.value?.host != src.host
+        ) {
+            return@withContext PasteSummary(
+                0, 0, spec.items.size, "请先回到源 NAS 所在的窗口", false
+            )
+        }
+
+        // Local folders have no cheap size; walk them (bounded) so the total progress is honest.
+        val tasks: List<PasteTaskItem> = spec.items.map { item ->
+            if (bothLocal && item.isDirectory && item.size <= 0L) {
+                item.copy(size = dirSize(File(item.path)))
+            } else item
+        }
+        val totalItems = tasks.size
+        val totalBytes = tasks.fold(0L) { acc, item -> acc + item.size.coerceAtLeast(0L) }
+        var doneBytes = 0L
+        var ok = 0
+        var skipped = 0
+        var failed = 0
+        var firstError: String? = null
+        var wasCancelled = false
+
+        fun progress(
+            index: Int,
+            name: String,
+            currentBytes: Long,
+            currentTotal: Long,
+            includeCurrent: Boolean = true
+        ) {
+            val cur = currentBytes.coerceAtLeast(0L)
+            report(
+                PasteProgress(
+                    currentName = name,
+                    currentBytes = cur,
+                    currentTotal = currentTotal.coerceAtLeast(0L),
+                    doneItems = index,
+                    totalItems = totalItems,
+                    doneBytes = doneBytes + if (includeCurrent) cur else 0L,
+                    totalBytes = totalBytes
+                )
+            )
+        }
+
+        for ((index, item) in tasks.withIndex()) {
+            if (cancelled()) {
+                wasCancelled = true
+                break
+            }
+            val itemSize = item.size.coerceAtLeast(0L)
+            val exists = try {
+                when {
+                    spec.targetLocal -> File(targetDir!!, item.name).exists()
+                    share.isBlank() -> false
+                    else -> p!!.withShare(share) { ds ->
+                        SmbWriteOps.exists(
+                            ds,
+                            if (targetSmbDir.isBlank()) item.name
+                            else "$targetSmbDir/${item.name}"
+                        )
+                    }
+                }
+            } catch (_: Exception) {
+                false
+            }
+            val overwrite = exists
+            if (exists) {
+                val answer = withContext(Dispatchers.Main) { ask(item.name) }
+                if (answer == null || answer.decision == ConflictDecision.SKIP) {
+                    skipped++
+                    doneBytes += itemSize
+                    progress(index + 1, item.name, itemSize, itemSize, false)
+                    continue
+                }
+            }
+
+            var transferred = 0L
+            val onBytes: (Long) -> Unit = { n ->
+                transferred += n
+                progress(index, item.name, transferred, itemSize)
+                if (cancelled()) throw PasteCancelledException()
+            }
+            try {
+                when {
+                    bothLocal -> copyLocal(item, targetDir!!, spec.move, onBytes)
+                    !src.local && !spec.targetLocal ->
+                        copyRemote(p!!, share, item, targetSmbDir, spec.move, overwrite, onBytes)
+                    src.local && !spec.targetLocal ->
+                        uploadOne(p!!, share, item, targetSmbDir, spec.move, overwrite, onBytes)
+                    else -> downloadOne(p!!, src.share, item, targetDir!!, spec.move, onBytes)
+                }
+                ok++
+                doneBytes += itemSize
+                progress(index + 1, item.name, itemSize, itemSize, false)
+            } catch (_: PasteCancelledException) {
+                wasCancelled = true
+                break
+            } catch (e: Exception) {
+                failed++
+                if (firstError == null) firstError = e.message ?: e.javaClass.simpleName
+                doneBytes += itemSize
+                progress(index + 1, item.name, itemSize, itemSize, false)
+            }
+        }
+        PasteSummary(ok, skipped, failed, firstError, wasCancelled)
+    }
+
+    private fun dirSize(dir: File): Long {
+        var total = 0L
+        var count = 0
+        for (child in dir.walkTopDown()) {
+            if (child.isFile) {
+                total += child.length()
+                if (++count >= 5000) break
+            }
+        }
+        return total
+    }
+
+    /** device -> device. Rename is tried first for CUT so it stays instantaneous on one volume. */
+    private fun copyLocal(
+        item: PasteTaskItem,
+        target: File,
+        move: Boolean,
+        onBytes: (Long) -> Unit
+    ) {
+        val src = File(item.path)
+        if (!src.exists()) throw IllegalStateException("源文件不存在：${item.name}")
+        val dest = File(target, item.name)
+        if (src.absolutePath == dest.absolutePath) {
+            throw IllegalStateException("源和目标相同：${item.name}")
+        }
+        // A same-volume CUT is still instantaneous, but never onto an existing entry: Java's
+        // renameTo() behaviour there is platform-dependent.
+        if (move && !dest.exists() && src.renameTo(dest)) {
+            onBytes(item.size)
+            return
+        }
+        // Write into a hidden temp file first so 取消 (or a broken pipe) cannot leave a
+        // half-written file behind, and cannot damage an existing file we were asked to replace.
+        val tmp = File(target, ".naspart_${UUID.randomUUID()}")
+        try {
+            if (src.isDirectory) {
+                src.copyRecursively(tmp, overwrite = true)
+                onBytes(item.size)
+            } else {
+                src.inputStream().use { input ->
+                    tmp.outputStream().use { out ->
+                        val buf = ByteArray(1024 * 1024)
+                        while (true) {
+                            val n = input.read(buf)
+                            if (n <= 0) break
+                            out.write(buf, 0, n)
+                            onBytes(n.toLong())
+                        }
+                    }
+                }
+            }
+            if (dest.exists()) {
+                val gone = if (dest.isDirectory) dest.deleteRecursively() else dest.delete()
+                if (!gone && dest.exists()) {
+                    throw IllegalStateException("无法覆盖同名文件 ${item.name}")
+                }
+            }
+            if (!tmp.renameTo(dest)) {
+                if (tmp.isDirectory) tmp.copyRecursively(dest, overwrite = true)
+                else tmp.copyTo(dest, overwrite = true)
+                tmp.deleteRecursively()
+            }
+            if (move) {
+                val gone = if (src.isDirectory) src.deleteRecursively() else src.delete()
+                if (!gone && src.exists()) {
+                    throw IllegalStateException("本机源文件未能删除：${item.name}")
+                }
+            }
+        } catch (e: PasteCancelledException) {
+            try { tmp.deleteRecursively() } catch (_: Exception) {}
+            throw e
+        } finally {
+            try { if (tmp.exists()) tmp.deleteRecursively() } catch (_: Exception) {}
+        }
+    }
+
+    /** NAS -> NAS: server-side copy, then remove the source on a CUT. */
+    private fun copyRemote(
+        p: SmbConnectionPool,
+        share: String,
+        item: PasteTaskItem,
+        targetSmbDir: String,
+        move: Boolean,
+        overwrite: Boolean,
+        onBytes: (Long) -> Unit
+    ) {
+        val dest = if (targetSmbDir.isBlank()) item.name else "$targetSmbDir/${item.name}"
+        try {
+            p.withShare(share) { ds ->
+                SmbWriteOps.copyFile(ds, item.path, dest, onBytes)
+                if (move) {
+                    SmbWriteOps.delete(ds, SmbEntry(item.name, item.path, false, item.size, 0L))
+                }
+            }
+        } catch (e: PasteCancelledException) {
+            // Only a brand-new destination can be cleaned up safely; an overwritten file was
+            // already replaced by FILE_OVERWRITE_IF and must not be removed a second time.
+            if (!overwrite) {
+                try {
+                    p.withShare(share) { ds -> SmbWriteOps.removeFile(ds, targetSmbDir, item.name) }
+                } catch (_: Exception) {}
+            }
+            throw e
+        }
+    }
+
+    /** device -> NAS: stream the local file up, then remove the local original on a CUT. */
+    private fun uploadOne(
+        p: SmbConnectionPool,
+        share: String,
+        item: PasteTaskItem,
+        targetSmbDir: String,
+        move: Boolean,
+        overwrite: Boolean,
+        onBytes: (Long) -> Unit
+    ) {
+        val f = File(item.path)
+        if (!f.isFile) throw IllegalStateException("源文件不存在：${item.name}")
+        try {
+            p.withShare(share) { ds ->
+                SmbWriteOps.upload(ds, targetSmbDir, item.name, FileInputStream(f), onBytes)
+            }
+        } catch (e: PasteCancelledException) {
+            if (!overwrite) {
+                try {
+                    p.withShare(share) { ds -> SmbWriteOps.removeFile(ds, targetSmbDir, item.name) }
+                } catch (_: Exception) {}
+            }
+            throw e
+        }
+        if (move && !f.delete() && f.exists()) {
+            throw IllegalStateException("本机源文件未能删除：${item.name}")
+        }
+    }
+
+    /** NAS -> device: download into a hidden temp file, then atomically replace the target. */
+    private fun downloadOne(
+        p: SmbConnectionPool,
+        share: String,
+        item: PasteTaskItem,
+        target: File,
+        move: Boolean,
+        onBytes: (Long) -> Unit
+    ) {
+        val dest = File(target, item.name)
+        val tmp = File(target, ".naspart_${UUID.randomUUID()}")
+        try {
+            p.withShare(share) { ds ->
+                val remote = ds.openFile(
+                    toSmbPath(item.path),
+                    EnumSet.of(AccessMask.GENERIC_READ),
+                    EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL),
+                    EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ),
+                    SMB2CreateDisposition.FILE_OPEN,
+                    EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE)
+                )
+                try {
+                    tmp.outputStream().use { out ->
+                        val buf = ByteArray(READ_BUF)
+                        var offset = 0L
+                        while (true) {
+                            val n = remote.read(buf, offset)
+                            if (n <= 0) break
+                            out.write(buf, 0, n)
+                            offset += n
+                            onBytes(n.toLong())
+                        }
+                    }
+                } finally {
+                    try { remote.close() } catch (_: Exception) {}
+                }
+            }
+            if (dest.exists() && !dest.delete()) {
+                throw IllegalStateException("无法覆盖同名文件 ${item.name}")
+            }
+            if (!tmp.renameTo(dest)) {
+                tmp.copyTo(dest, overwrite = true)
+                tmp.delete()
+            }
+            if (move) {
+                p.withShare(share) { ds ->
+                    SmbWriteOps.delete(ds, SmbEntry(item.name, item.path, false, item.size, 0L))
+                }
+            }
+        } finally {
+            try { if (tmp.exists()) tmp.delete() } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Cross-type paste NAS -> device: stream the staged remote files straight into [targetDir].
+     *
+     * The SMB pool is Activity-scoped and survives a switch to a 本机 tab, so no re-login is
+     * needed. Every file goes through a `.naspart_*` temp file first; a CUT deletes its remote
+     * original only after that file landed completely, so a broken pipe can never lose data.
+     */
+    suspend fun downloadFromNas(
+        host: String,
+        share: String,
+        files: List<SmbEntry>,
+        targetDir: File,
+        move: Boolean
+    ): CrossPasteResult = withContext(Dispatchers.IO) {
+        val p = pool
+            ?: return@withContext CrossPasteResult(0, files.size, "尚未连接 NAS")
+        if (host.isNotBlank() && _connection.value?.host != host) {
+            return@withContext CrossPasteResult(0, files.size, "请先回到源 NAS 所在的窗口")
+        }
+        var ok = 0
+        var failed = 0
+        var firstError: String? = null
+        for (e in files) {
+            val dest = File(targetDir, e.name)
+            val tmp = File(targetDir, ".naspart_${UUID.randomUUID()}")
+            try {
+                p.withShare(share) { ds ->
+                    val remote = ds.openFile(
+                        toSmbPath(e.path),
+                        EnumSet.of(AccessMask.GENERIC_READ),
+                        EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL),
+                        EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ),
+                        SMB2CreateDisposition.FILE_OPEN,
+                        EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE)
+                    )
+                    try {
+                        tmp.outputStream().use { out ->
+                            val buf = ByteArray(READ_BUF)
+                            var offset = 0L
+                            while (true) {
+                                val n = remote.read(buf, offset)
+                                if (n <= 0) break
+                                out.write(buf, 0, n)
+                                offset += n
+                            }
+                        }
+                    } finally {
+                        try { remote.close() } catch (_: Exception) {}
+                    }
+                }
+                if (dest.exists() && !dest.delete()) {
+                    throw IllegalStateException("无法覆盖同名文件 ${e.name}")
+                }
+                if (!tmp.renameTo(dest)) {
+                    tmp.copyTo(dest, overwrite = true)
+                    tmp.delete()
+                }
+                if (move) p.withShare(share) { ds -> SmbWriteOps.delete(ds, e) }
+                ok++
+            } catch (ex: Exception) {
+                failed++
+                if (firstError == null) firstError = ex.message ?: ex.javaClass.simpleName
+                try { tmp.delete() } catch (_: Exception) {}
+            }
+        }
+        CrossPasteResult(ok, failed, firstError)
+    }
+
+    /**
+     * Cross-type paste device -> NAS: upload the staged local files into the current remote
+     * directory. On CUT each local original is removed only after its upload succeeded.
+     */
+    suspend fun uploadToNas(files: List<File>, move: Boolean): CrossPasteResult =
+        withContext(Dispatchers.IO) {
+            val p = pool
+                ?: return@withContext CrossPasteResult(0, files.size, "尚未连接 NAS")
+            val share = _currentShare.value
+                ?: return@withContext CrossPasteResult(0, files.size, "尚未进入共享目录")
+            val parent = _currentPath.value
+            var ok = 0
+            var failed = 0
+            var firstError: String? = null
+            for (f in files) {
+                try {
+                    p.withShare(share) { ds ->
+                        FileInputStream(f).use { input ->
+                            SmbWriteOps.upload(ds, parent, f.name, input)
+                        }
+                    }
+                    ok++
+                    if (move && !f.delete()) {
+                        failed++
+                        if (firstError == null) firstError = "本机源文件未能删除：${f.name}"
+                    }
+                } catch (ex: Exception) {
+                    failed++
+                    if (firstError == null) firstError = ex.message ?: ex.javaClass.simpleName
+                }
+            }
+            CrossPasteResult(ok, failed, firstError)
+        }
 
     /** 压缩: download the selected remote files to cache, zip them, upload the archive here. */
     fun compressSelected(entries: List<SmbEntry>, zipName: String, done: (Throwable?) -> Unit) {

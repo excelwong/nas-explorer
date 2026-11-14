@@ -25,6 +25,9 @@ data class SelectionState(
 
 interface SelectionHost {
     fun publishSelection(state: SelectionState?)
+
+    /** Redraw the bottom toolbar (and cut-row styling) after the file clipboard changes. */
+    fun refreshChrome()
 }
 
 /**

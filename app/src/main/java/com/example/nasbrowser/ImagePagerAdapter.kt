@@ -17,22 +17,23 @@ import androidx.lifecycle.LifecycleCoroutineScope
 import androidx.recyclerview.widget.RecyclerView
 import com.example.nasbrowser.databinding.ItemImagePageBinding
 import com.example.nasbrowser.smb.SmbEntry
-import com.example.nasbrowser.viewmodel.BrowserViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * ViewPager2 adapter for the image gallery. Each page downloads its own image on demand from the
- * NAS (via the shared [BrowserViewModel.fetchToCache]) and decodes it downscaled so large photos
- * don't OOM. Swiping left/right moves to the previous/next image in the same folder.
+ * ViewPager2 adapter for the in-app image gallery. Each page resolves its own image on demand:
+ * NAS entries are downloaded (and cached) via BrowserViewModel.fetchToCache, while device files
+ * are opened directly from their absolute path. The image is decoded downscaled so large photos
+ * don't OOM. Swiping left/right — or the 上一张 / 下一张 buttons — moves between the images in
+ * the same folder.
  */
 class ImagePagerAdapter(
     private val items: List<SmbEntry>,
-    private val share: String,
-    private val vm: BrowserViewModel,
-    private val scope: LifecycleCoroutineScope
+    private val resolve: suspend (SmbEntry) -> File?,
+    private val scope: LifecycleCoroutineScope,
+    private val onSingleTap: () -> Unit
 ) : RecyclerView.Adapter<ImagePagerAdapter.VH>() {
 
     inner class VH(val b: ItemImagePageBinding) : RecyclerView.ViewHolder(b.root)
@@ -45,6 +46,7 @@ class ImagePagerAdapter(
     }
 
     override fun onBindViewHolder(holder: VH, position: Int) {
+        holder.b.image.onSingleTap = onSingleTap
         loadImage(holder, position, items[position])
     }
 
@@ -53,11 +55,16 @@ class ImagePagerAdapter(
         holder.b.error.visibility = View.GONE
         // Detach any previously shown drawable (and stop its animation) before loading a new one.
         (holder.b.image.drawable as? AnimatedImageDrawable)?.stop()
-        holder.b.image.setImageDrawable(null)
+        // A recycled page must start at fitCenter, not with the previous picture's zoom/pan.
+        holder.b.image.setZoomDrawable(null)
         val ctx = holder.b.image.context
         scope.launch {
             val drawable = withContext(Dispatchers.IO) {
-                val file = vm.fetchToCache(share, item)
+                val file = try {
+                    resolve(item)
+                } catch (_: Exception) {
+                    null
+                }
                 if (file != null) loadDrawable(ctx, file) else null
             }
             withContext(Dispatchers.Main) {
@@ -65,7 +72,7 @@ class ImagePagerAdapter(
                 // downloading; only apply the result if it still shows this position.
                 if (holder.bindingAdapterPosition != position) return@withContext
                 if (drawable != null) {
-                    holder.b.image.setImageDrawable(drawable)
+                    holder.b.image.setZoomDrawable(drawable)
                     // Animated GIF/WebP drawables only play once started (API 28+).
                     if (drawable is AnimatedImageDrawable) drawable.start()
                 } else {

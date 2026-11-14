@@ -2,8 +2,8 @@ package com.example.nasbrowser
 
 import com.example.nasbrowser.model.ConnectionParams
 
-/** The five fixed slots of the ES-style bottom toolbar. */
-enum class Action { NEW, SEARCH, REFRESH, VIEW, WINDOW, MORE, HISTORY, SCAN, EMPTY_ALL }
+/** The fixed slots of the ES-style bottom toolbar (PASTE is appended when the clipboard is full). */
+enum class Action { NEW, SEARCH, REFRESH, VIEW, WINDOW, MORE, HISTORY, SCAN, EMPTY_ALL, PASTE }
 
 /** Each window/tab in the top strip is one of these page kinds. */
 enum class TabType { HOME, LOCAL, LAN, SMB, BOOKMARKS, RECYCLE, APPS }
@@ -31,6 +31,9 @@ interface PageActions {
     fun toolbarActions(): List<Action>
     fun onToolbarAction(a: Action): Boolean
     fun onBackPressed(): Boolean
+
+    /** The shared file clipboard changed (staged / cleared): re-render cut rows. */
+    fun refreshForClipboard() {}
 }
 
 object ToolbarMeta {
@@ -44,6 +47,7 @@ object ToolbarMeta {
         Action.HISTORY -> R.drawable.ic_action_history
         Action.SCAN -> R.drawable.ic_action_refresh
         Action.EMPTY_ALL -> R.drawable.ic_sel_delete
+        Action.PASTE -> R.drawable.ic_sel_paste
     }
 
     fun label(a: Action): Int = when (a) {
@@ -56,5 +60,6 @@ object ToolbarMeta {
         Action.HISTORY -> R.string.tool_history
         Action.SCAN -> R.string.tool_scan
         Action.EMPTY_ALL -> R.string.recycle_clear_all
+        Action.PASTE -> R.string.sel_paste
     }
 }

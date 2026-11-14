@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- In-app image viewer: ViewPager2 for swipes, a translucent top bar with the file name, and a
+     bottom bar with explicit 上一张 / 下一张 buttons (disabled at the ends) plus the N / M index.
+     clickable=true keeps taps on the black background from falling through to the file list. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000"
+    android:clickable="true"
+    android:focusable="true"
     android:fitsSystemWindows="true">
 
     <androidx.viewpager2.widget.ViewPager2
@@ -17,8 +22,76 @@
         android:layout_height="?attr/actionBarSize"
         android:background="#80000000"
         app:titleTextColor="#FFFFFF"
+        app:subtitleTextColor="#D9FFFFFF"
         app:navigationIconTint="#FFFFFF"
         app:navigationIcon="@drawable/ic_back"
-        app:title="1 / 1" />
+        app:title=" " />
+
+    <LinearLayout
+        android:id="@+id/bottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:background="#B3000000"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
+
+        <TextView
+            android:id="@+id/tvName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:singleLine="true"
+            android:ellipsize="middle"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:paddingBottom="2dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/btnPrev"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:clickable="true"
+                android:background="?attr/selectableItemBackground"
+                android:text="@string/gallery_prev"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:contentDescription="@string/gallery_prev" />
+
+            <TextView
+                android:id="@+id/tvCounter"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:minWidth="72dp"
+                android:textColor="#D9FFFFFF"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/btnNext"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:clickable="true"
+                android:background="?attr/selectableItemBackground"
+                android:text="@string/gallery_next"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:contentDescription="@string/gallery_next" />
+
+        </LinearLayout>
+    </LinearLayout>
 
 </FrameLayout>

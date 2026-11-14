@@ -21,6 +21,7 @@ import androidx.core.content.FileProvider
 import androidx.core.content.PermissionChecker
 import androidx.core.widget.doOnTextChanged
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -30,12 +31,20 @@ import com.example.nasbrowser.model.ViewMode
 import com.example.nasbrowser.smb.SmbEntry
 import com.example.nasbrowser.util.Bookmark
 import com.example.nasbrowser.util.BookmarkStore
+import com.example.nasbrowser.util.ClipboardState
+import com.example.nasbrowser.util.ClipItem
+import com.example.nasbrowser.util.ClipMode
+import com.example.nasbrowser.util.ClipSource
+import com.example.nasbrowser.util.FileClipboard
+import com.example.nasbrowser.util.PasteSpec
+import com.example.nasbrowser.util.PasteTaskItem
 import com.example.nasbrowser.util.RecycleItem
 import com.example.nasbrowser.util.RecycleStore
 import com.example.nasbrowser.util.ThumbnailLoader
 import com.example.nasbrowser.util.UiPrefs
 import com.example.nasbrowser.util.formatSize
 import com.example.nasbrowser.util.guessMime
+import com.example.nasbrowser.viewmodel.BrowserViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,6 +62,7 @@ class LocalFilesFragment : Fragment(), PageActions {
 
     private var _binding: FragmentLocalBinding? = null
     private val binding get() = _binding!!
+    private val nasVm: BrowserViewModel by activityViewModels()
     private lateinit var adapter: FileAdapter
     private lateinit var selection: SelectionHelper
     private var tabId = ""
@@ -261,7 +271,8 @@ class LocalFilesFragment : Fragment(), PageActions {
             onActivate = { activate(it) },
             onLongPress = { toggleSelection(it) },
             onOpen = { activate(it) },
-            loadThumb = { e, iv -> loadThumb(e, iv) }
+            loadThumb = { e, iv -> loadThumb(e, iv) },
+            cutKeys = { FileClipboard.cutKeys() }
         )
         adapter.setSelected(selection.selected)
         binding.recycler.adapter = adapter
@@ -341,8 +352,8 @@ class LocalFilesFragment : Fragment(), PageActions {
     private fun selectedFiles(): List<File> = selectedEntries().map { File(it.path) }
 
     private fun selectionActions(): List<SelAction> = listOf(
-        SelAction(getString(R.string.sel_copy), R.drawable.ic_sel_copy) { localMoveCopy(false) },
-        SelAction(getString(R.string.sel_cut), R.drawable.ic_sel_cut) { localMoveCopy(true) },
+        SelAction(getString(R.string.sel_copy), R.drawable.ic_sel_copy) { clipSelected(false) },
+        SelAction(getString(R.string.sel_cut), R.drawable.ic_sel_cut) { clipSelected(true) },
         SelAction(getString(R.string.sel_delete), R.drawable.ic_sel_delete) { deleteSelected() },
         SelAction(getString(R.string.sel_rename), R.drawable.ic_sel_rename) { renameSelected() },
         SelAction(getString(R.string.sel_more), R.drawable.ic_action_more) {
@@ -369,7 +380,30 @@ class LocalFilesFragment : Fragment(), PageActions {
             }
             return
         }
+        // Pictures open in the app's own gallery, with 上一张 / 下一张 inside the current folder,
+        // instead of handing a single file to an external viewer.
+        if (guessMime(f.name).startsWith("image/")) {
+            openImageGallery(e)
+            return
+        }
         openExternal(f)
+    }
+
+    /** Browse all images visible in the current (possibly filtered/sorted) listing. */
+    private fun openImageGallery(entry: SmbEntry) {
+        val images = visible().filter {
+            !it.isDirectory && guessMime(it.name).startsWith("image/")
+        }
+        if (images.isEmpty()) {
+            openExternal(File(entry.path))
+            return
+        }
+        val start = images.indexOfFirst { it.path == entry.path }.coerceAtLeast(0)
+        val frag = ImageViewerFragment.newInstanceLocal(ArrayList(images), start)
+        parentFragmentManager.beginTransaction()
+            .add(R.id.pageContainer, frag, "imageViewer")
+            .addToBackStack("imageViewer")
+            .commit()
     }
 
     private fun openExternal(f: File) {
@@ -466,8 +500,8 @@ class LocalFilesFragment : Fragment(), PageActions {
             .show()
     }
 
-    private fun localMoveCopy(move: Boolean) {
-        val files = selectedFiles()
+    /** 「更多 → 复制到 / 移动到」: pick a target directory and execute immediately. */
+    private fun moveCopyTo(files: List<File>, move: Boolean) {
         if (files.isEmpty()) {
             Toast.makeText(requireContext(), R.string.more_need_selection, Toast.LENGTH_SHORT).show()
             return
@@ -483,6 +517,90 @@ class LocalFilesFragment : Fragment(), PageActions {
                 load(current)
             }
         }
+    }
+
+    /**
+     * Windows semantics: 复制 / 剪切 only stage the selection in the shared clipboard. Nothing
+     * is copied or moved until the user navigates elsewhere and taps 粘贴.
+     */
+    private fun clipSelected(move: Boolean) {
+        val entries = selectedEntries()
+        if (entries.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.more_need_selection, Toast.LENGTH_SHORT).show()
+            return
+        }
+        FileClipboard.put(
+            if (move) ClipMode.CUT else ClipMode.COPY,
+            ClipSource(
+                local = true,
+                fromDir = current.absolutePath,
+                items = entries.map { ClipItem(it.path, it.name, it.isDirectory, it.size) }
+            )
+        )
+        clearSelection()
+        (activity as? SelectionHost)?.refreshChrome()
+        Toast.makeText(
+            requireContext(),
+            getString(if (move) R.string.clip_cut else R.string.clip_copied, entries.size),
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    /** Execute a staged copy / move into the directory currently shown by this window. */
+    private fun pasteHere() {
+        val clip = FileClipboard.get()
+        if (clip == null) {
+            Toast.makeText(requireContext(), R.string.clip_empty, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val src = clip.source
+        if (!src.local) {
+            pasteFromNas(clip)
+            return
+        }
+        val target = current.absolutePath
+        if (target.trimEnd(File.separatorChar) == src.fromDir.trimEnd(File.separatorChar)) {
+            Toast.makeText(requireContext(), R.string.clip_same_dir, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val files = src.items.map { File(it.path) }.filter { it.exists() }
+        if (files.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.clip_source_missing, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val spec = PasteSpec(
+            move = clip.mode == ClipMode.CUT,
+            fromLabel = "${src.fromDir.trimEnd(File.separatorChar)}/",
+            toLabel = "$target/",
+            items = files.map { localTaskItem(it) },
+            targetLocal = true,
+            targetDir = current
+        )
+        launchPaste(nasVm, clip, spec) { load(current) }
+    }
+
+    /**
+     * Cross-type paste NAS -> 本机. The Activity-scoped SMB pool survives a tab switch, so the
+     * staged remote paths can be streamed straight into [current] without re-connecting.
+     */
+    private fun pasteFromNas(clip: ClipboardState) {
+        val src = clip.source
+        val dirs = src.items.count { it.isDirectory }
+        val files = src.items.filter { !it.isDirectory }
+        if (files.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.clip_dir_only, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val spec = PasteSpec(
+            move = clip.mode == ClipMode.CUT,
+            fromLabel = "smb://${src.host}/${src.share}/${src.fromDir.trimEnd('/')}/",
+            toLabel = "${current.absolutePath}/",
+            items = files.map { PasteTaskItem(it.name, it.path, it.size) },
+            targetLocal = true,
+            targetDir = current,
+            skippedDirs = dirs
+        )
+        launchPaste(nasVm, clip, spec) { load(current) }
     }
 
     private fun createFolder() {
@@ -607,8 +725,13 @@ class LocalFilesFragment : Fragment(), PageActions {
             Action.REFRESH -> { load(current); true }
             Action.VIEW -> { showViewDialog(); true }
             Action.MORE -> { showMoreMenu(binding.pathBar.pathScroll); true }
+            Action.PASTE -> { pasteHere(); true }
             else -> false
         }
+    }
+
+    override fun refreshForClipboard() {
+        if (::adapter.isInitialized) adapter.notifyDataSetChanged()
     }
 
     override fun onBackPressed(): Boolean {
@@ -660,7 +783,7 @@ class LocalFilesFragment : Fragment(), PageActions {
             play = { openExternal(File(it.path)) },
             share = { FileOps.share(ctx, File(it.path)) },
             compress = { askZipName(it) },
-            moveCopy = { _, move -> localMoveCopy(move) },
+            moveCopy = { list, move -> moveCopyTo(list.map { File(it.path) }, move) },
             pin = { list ->
                 FileOps.pin(ctx, list.map { it.path })
                 pinnedSet = FileOps.pinned(ctx)

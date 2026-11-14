@@ -36,7 +36,8 @@ class FileAdapter(
     private val onActivate: (SmbEntry) -> Unit,
     private val onLongPress: (SmbEntry) -> Unit,
     private val onOpen: (SmbEntry) -> Unit,
-    private val loadThumb: (SmbEntry, ImageView) -> Unit
+    private val loadThumb: (SmbEntry, ImageView) -> Unit,
+    private val cutKeys: () -> Set<String> = { emptySet() }
 ) : ListAdapter<SmbEntry, FileAdapter.VH>(DIFF) {
 
     private val selected = mutableSetOf<String>()
@@ -119,6 +120,8 @@ class FileAdapter(
 
         fun bind(e: SmbEntry) {
             entry = e
+            // Windows greys out cut items in the source directory until the paste happens.
+            root.alpha = if (e.path in cutKeys()) 0.45f else 1f
             val picked = selected.contains(e.path)
             val selecting = isSelecting()
 

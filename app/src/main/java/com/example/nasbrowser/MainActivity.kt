@@ -16,6 +16,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.nasbrowser.databinding.ActivityMainBinding
 import com.example.nasbrowser.model.ConnectionParams
 import com.example.nasbrowser.util.Bookmark
+import com.example.nasbrowser.util.FileClipboard
 import com.example.nasbrowser.util.LanDevice
 import com.example.nasbrowser.util.LanStore
 import com.example.nasbrowser.util.PrefsStore
@@ -406,10 +407,42 @@ class MainActivity : AppCompatActivity(), SelectionHost {
             }
             return
         }
+        // ES clipboard mode: after 复制 / 剪切 the bottom bar shows exactly three evenly spaced
+        // slots — 粘贴 / 新建 / 取消 — and every other action stays hidden until the clipboard
+        // is emptied. A paste job (or 取消) always empties it, so the normal toolbar returns.
+        if (FileClipboard.hasContent()) {
+            addToolbarItem(getString(R.string.sel_paste), R.drawable.ic_sel_paste) {
+                pasteFromClipboard()
+            }
+            addToolbarItem(getString(R.string.tool_new), R.drawable.ic_action_add) {
+                dispatch(Action.NEW)
+            }
+            addToolbarItem(getString(R.string.cancel), R.drawable.ic_clip_cancel) {
+                cancelClipboard()
+            }
+            return
+        }
         val actions = (currentPage() as? PageActions)?.toolbarActions() ?: defaultActions()
         actions.forEach { a ->
             addToolbarItem(getString(ToolbarMeta.label(a)), ToolbarMeta.icon(a)) { dispatch(a) }
         }
+    }
+
+    /** 粘贴 only makes sense inside a 本机 / NAS directory window; never fail silently. */
+    private fun pasteFromClipboard() {
+        val type = tabs.firstOrNull { it.id == activeId }?.type
+        if (type != TabType.LOCAL && type != TabType.SMB) {
+            Toast.makeText(this, R.string.clip_need_dir, Toast.LENGTH_SHORT).show()
+            return
+        }
+        dispatch(Action.PASTE)
+    }
+
+    /** 取消 abandons the staged copy / cut, restores cut rows and the normal toolbar. */
+    private fun cancelClipboard() {
+        FileClipboard.clear()
+        refreshChrome()
+        Toast.makeText(this, R.string.clip_cleared, Toast.LENGTH_SHORT).show()
     }
 
     private fun addToolbarItem(label: String, icon: Int, click: () -> Unit) {
@@ -423,6 +456,12 @@ class MainActivity : AppCompatActivity(), SelectionHost {
     /** Pages call this whenever their selection set changes. */
     override fun publishSelection(state: SelectionState?) {
         currentSelection = state
+        binding.toolBar.post { updateChrome() }
+    }
+
+    /** The shared clipboard changed: re-render cut rows and rebuild the bottom toolbar. */
+    override fun refreshChrome() {
+        (currentPage() as? PageActions)?.refreshForClipboard()
         binding.toolBar.post { updateChrome() }
     }
 
@@ -442,19 +481,21 @@ class MainActivity : AppCompatActivity(), SelectionHost {
     }
 
     private fun showGenericMore() {
-        val labels = arrayOf(
+        val labels = mutableListOf(
             getString(R.string.window_title),
             getString(R.string.tab_new_title),
             getString(R.string.menu_display),
             getString(R.string.menu_dir_settings)
         )
+        if (FileClipboard.hasContent()) labels.add(getString(R.string.clip_clear))
         AlertDialog.Builder(this)
             .setTitle(R.string.tool_more)
-            .setItems(labels) { _, which ->
+            .setItems(labels.toTypedArray()) { _, which ->
                 when (which) {
                     0 -> showWindowDialog()
                     1 -> showNewTabDialog()
                     2, 3 -> (currentPage() as? PageActions)?.onToolbarAction(Action.MORE)
+                    4 -> cancelClipboard()
                 }
             }
             .show()

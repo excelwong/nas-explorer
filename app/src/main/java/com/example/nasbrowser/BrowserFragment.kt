@@ -37,6 +37,13 @@ import com.example.nasbrowser.model.ViewMode
 import com.example.nasbrowser.smb.SmbEntry
 import com.example.nasbrowser.util.Bookmark
 import com.example.nasbrowser.util.BookmarkStore
+import com.example.nasbrowser.util.ClipboardState
+import com.example.nasbrowser.util.ClipItem
+import com.example.nasbrowser.util.ClipMode
+import com.example.nasbrowser.util.ClipSource
+import com.example.nasbrowser.util.FileClipboard
+import com.example.nasbrowser.util.PasteSpec
+import com.example.nasbrowser.util.PasteTaskItem
 import com.example.nasbrowser.util.PrefsStore
 import com.example.nasbrowser.util.ThumbnailLoader
 import com.example.nasbrowser.util.UiPrefs
@@ -48,6 +55,7 @@ import com.example.nasbrowser.viewmodel.SearchMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.net.URLEncoder
 
 /**
@@ -220,8 +228,8 @@ class BrowserFragment : Fragment(), PageActions {
                 },
                 onCancel = { clearSelection() },
                 actions = listOf(
-                    SelAction(getString(R.string.sel_copy), R.drawable.ic_sel_copy) { doCopyOrMove(false) },
-                    SelAction(getString(R.string.sel_cut), R.drawable.ic_sel_cut) { doCopyOrMove(true) },
+                    SelAction(getString(R.string.sel_copy), R.drawable.ic_sel_copy) { clipSelected(false) },
+                    SelAction(getString(R.string.sel_cut), R.drawable.ic_sel_cut) { clipSelected(true) },
                     SelAction(getString(R.string.sel_delete), R.drawable.ic_sel_delete) { confirmDeleteBatch() },
                     SelAction(getString(R.string.sel_rename), R.drawable.ic_sel_rename) {
                         selectedEntries().firstOrNull()?.let(::showRenameDialog)
@@ -244,8 +252,8 @@ class BrowserFragment : Fragment(), PageActions {
             onRange = { rangeMode = true; rangeAnchor = -1 },
             onCancel = { clearSelection() },
             actions = listOf(
-                SelAction(getString(R.string.sel_copy), R.drawable.ic_sel_copy) { doCopyOrMove(false) },
-                SelAction(getString(R.string.sel_cut), R.drawable.ic_sel_cut) { doCopyOrMove(true) },
+                SelAction(getString(R.string.sel_copy), R.drawable.ic_sel_copy) { clipSelected(false) },
+                SelAction(getString(R.string.sel_cut), R.drawable.ic_sel_cut) { clipSelected(true) },
                 SelAction(getString(R.string.sel_delete), R.drawable.ic_sel_delete) { confirmDeleteBatch() },
                 SelAction(getString(R.string.sel_rename), R.drawable.ic_sel_rename) {
                     selectedEntries().firstOrNull()?.let(::showRenameDialog)
@@ -290,8 +298,13 @@ class BrowserFragment : Fragment(), PageActions {
             Action.REFRESH -> { vm.reload(); true }
             Action.VIEW -> { showViewDialog(); true }
             Action.MORE -> { showMoreMenu(binding.pathBar.pathScroll); true }
+            Action.PASTE -> { pasteHere(); true }
             else -> false
         }
+    }
+
+    override fun refreshForClipboard() {
+        if (::adapter.isInitialized) adapter.notifyDataSetChanged()
     }
 
     override fun onBackPressed(): Boolean {
@@ -349,7 +362,8 @@ class BrowserFragment : Fragment(), PageActions {
             onActivate = { activateEntry(it) },
             onLongPress = { toggleSelect(it) },
             onOpen = { openMedia(it) },
-            loadThumb = { e, iv -> loadThumb(e, iv) }
+            loadThumb = { e, iv -> loadThumb(e, iv) },
+            cutKeys = { FileClipboard.cutKeys() }
         )
         adapter.setSelected(vm.visibleSelection.value.keys)
         binding.recycler.adapter = adapter
@@ -591,16 +605,108 @@ class BrowserFragment : Fragment(), PageActions {
             .show()
     }
 
-    private fun doCopyOrMove(move: Boolean) {
+    /**
+     * Windows semantics: 复制 / 剪切 only stage the selection in the shared clipboard. Nothing
+     * is copied or moved until the user navigates elsewhere and taps 粘贴.
+     */
+    private fun clipSelected(move: Boolean) {
         val entries = selectedEntries()
         if (entries.isEmpty()) {
             Toast.makeText(requireContext(), R.string.more_need_selection, Toast.LENGTH_SHORT).show()
             return
         }
-        val children = vm.items.value.filter { it.isDirectory }.map { it.path }
-        FileOps.chooseTargetDir(requireContext(), vm.currentPath.value, children) { target ->
-            vm.copyOrMove(entries, target, move) { err -> reportResult(err) }
+        FileClipboard.put(
+            if (move) ClipMode.CUT else ClipMode.COPY,
+            ClipSource(
+                local = false,
+                host = vm.connection.value?.host ?: "",
+                share = vm.currentShare.value ?: "",
+                fromDir = vm.currentPath.value,
+                items = entries.map { ClipItem(it.path, it.name, it.isDirectory, it.size) }
+            )
+        )
+        clearSelection()
+        host?.refreshChrome()
+        Toast.makeText(
+            requireContext(),
+            getString(if (move) R.string.clip_cut else R.string.clip_copied, entries.size),
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    /** Execute a staged copy / move into the directory currently shown by this window. */
+    private fun pasteHere() {
+        val clip = FileClipboard.get()
+        if (clip == null) {
+            Toast.makeText(requireContext(), R.string.clip_empty, Toast.LENGTH_SHORT).show()
+            return
         }
+        val src = clip.source
+        if (src.local) {
+            pasteFromLocal(clip)
+            return
+        }
+        val share = vm.currentShare.value ?: ""
+        val hostNow = vm.connection.value?.host ?: ""
+        if (src.host != hostNow || src.share != share) {
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.clip_wrong_share, src.share),
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+        // Normalise trailing slashes: copying a file onto itself would open the same handle
+        // for reading and (over)writing and could corrupt it.
+        val targetDir = vm.currentPath.value.trimEnd('/')
+        if (targetDir == src.fromDir.trimEnd('/')) {
+            Toast.makeText(requireContext(), R.string.clip_same_dir, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val dirs = src.items.count { it.isDirectory }
+        val files = src.items.filter { !it.isDirectory }
+        if (files.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.clip_dir_only, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val spec = PasteSpec(
+            move = clip.mode == ClipMode.CUT,
+            fromLabel = "smb://${src.host}/${src.share}/${src.fromDir.trimEnd('/')}/",
+            toLabel = "smb://$hostNow/$share/$targetDir/",
+            items = files.map { PasteTaskItem(it.name, it.path, it.size) },
+            targetLocal = false,
+            targetSmbDir = targetDir,
+            skippedDirs = dirs
+        )
+        launchPaste(vm, clip, spec) { vm.reload() }
+    }
+
+    /**
+     * Cross-type paste 本机 -> NAS: upload the staged local files into the directory currently
+     * shown by this window. A CUT removes each local original only after a successful upload.
+     */
+    private fun pasteFromLocal(clip: ClipboardState) {
+        val src = clip.source
+        val dirs = src.items.count { it.isDirectory }
+        val files = src.items.map { File(it.path) }
+            .filter { !it.isDirectory && it.isFile && it.exists() }
+        if (files.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.clip_source_missing, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val targetDir = vm.currentPath.value.trimEnd('/')
+        val share = vm.currentShare.value ?: ""
+        val host = vm.connection.value?.host ?: ""
+        val spec = PasteSpec(
+            move = clip.mode == ClipMode.CUT,
+            fromLabel = "${src.fromDir.trimEnd('/')}/",
+            toLabel = "smb://$host/$share/$targetDir/",
+            items = files.map { localTaskItem(it) },
+            targetLocal = false,
+            targetSmbDir = targetDir,
+            skippedDirs = dirs
+        )
+        launchPaste(vm, clip, spec) { vm.reload() }
     }
 
     private fun showDisplayDialog() {

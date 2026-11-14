@@ -42,6 +42,9 @@
     <string name="no_player">未找到可播放该文件的应用</string>
     <string name="vlc_not_installed">未安装 VLC，将使用其他播放器打开</string>
     <string name="gallery_load_failed">图片加载失败</string>
+    <string name="gallery_prev">‹ 上一张</string>
+    <string name="gallery_next">下一张 ›</string>
+    <string name="gallery_counter">%1$d / %2$d</string>
     <string name="config_cleared">已清除保存的配置</string>
 
     <!-- wide-screen navigation -->
@@ -313,6 +316,51 @@
     <string name="sel_web_search">网络搜索</string>
     <string name="sel_range_hint">区间选择：先点起始项，再点结束项</string>
     <string name="sel_range_from">已选起点，请点击结束项</string>
+
+    <!-- v4.1.8: Windows-style copy / cut / paste clipboard -->
+    <string name="sel_paste">粘贴</string>
+    <string name="clip_copied">已复制 %1$d 项，进入目标目录后点「粘贴」</string>
+    <string name="clip_cut">已剪切 %1$d 项，进入目标目录后点「粘贴」</string>
+    <string name="clip_empty">剪贴板为空</string>
+    <string name="clip_wrong_share">请回到源共享「%1$s」所在的 NAS 窗口粘贴</string>
+    <string name="clip_same_dir">目标目录与源目录相同，请先进入其他目录</string>
+    <string name="clip_overwrite_title">存在同名文件</string>
+    <string name="clip_overwrite_msg">目标目录已有 %1$d 个同名项目，是否覆盖？</string>
+    <string name="clip_paste_done">已粘贴 %1$d 项</string>
+    <string name="clip_dir_skipped">已跳过 %1$d 个目录（暂不支持目录复制）</string>
+    <string name="clip_dir_only">所选内容全为目录，暂不支持目录复制</string>
+    <string name="clip_source_missing">剪贴板中的源文件已不存在</string>
+    <string name="clip_clear">清空剪贴板</string>
+    <string name="clip_cleared">已清空剪贴板</string>
+    <string name="clip_need_dir">请先进入本机或 NAS 目录再粘贴</string>
+    <string name="clip_nas_downloading">正在从 NAS 复制 %1$d 个文件…</string>
+    <string name="clip_local_uploading">正在上传 %1$d 个文件到 NAS…</string>
+    <string name="clip_partial">已处理 %1$d 项，失败 %2$d 项：%3$s</string>
+
+    <!-- v4.1.11: ES-style per-file overwrite prompt and copy / move progress dialog -->
+    <string name="paste_title_copy">正在复制</string>
+    <string name="paste_title_move">正在移动</string>
+    <string name="paste_names">名称: %1$s</string>
+    <string name="paste_total">总共: %1$d 项，总大小: %2$s</string>
+    <string name="paste_from">从:%1$s</string>
+    <string name="paste_to">到:%1$s</string>
+    <string name="paste_current">当前进度 : %1$s</string>
+    <string name="paste_overall">总进度 : %1$d/%2$d</string>
+    <string name="paste_remaining">剩余时间:%1$s</string>
+    <string name="paste_calculating">正在计算…</string>
+    <string name="paste_cancel">取消</string>
+    <string name="paste_hide">隐藏</string>
+    <string name="paste_hidden">任务已转到后台，完成后会提示结果</string>
+    <string name="paste_busy">已有复制/移动任务在进行中</string>
+    <string name="paste_done">已完成 %1$d 项，跳过 %2$d 项</string>
+    <string name="paste_partial">完成 %1$d 项，跳过 %2$d 项，失败 %3$d 项：%4$s</string>
+    <string name="paste_cancelled">已取消，成功 %1$d 项</string>
+    <string name="overwrite_title">覆盖</string>
+    <string name="overwrite_msg">同名文件已存在，是否要覆盖\n%1$s</string>
+    <string name="overwrite_apply_all">应用到全部</string>
+    <string name="overwrite_skip">跳过</string>
+    <string name="overwrite_overwrite">覆盖</string>
+
     <string name="recycle_clear_all">全部清除</string>
     <string name="recycle_batch_delete">删除</string>
     <string name="recycle_batch_restore">恢复</string>
