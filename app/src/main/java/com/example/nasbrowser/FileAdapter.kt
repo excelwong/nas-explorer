@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.example.nasbrowser.model.ViewKind
 import com.example.nasbrowser.model.ViewMode
 import com.example.nasbrowser.smb.SmbEntry
 import com.example.nasbrowser.util.ThumbnailLoader
@@ -108,7 +109,13 @@ class FileAdapter(
                 imgIcon.setBackgroundResource(R.drawable.bg_thumb)
             } else {
                 root.layoutParams = root.layoutParams.apply {
-                    height = (s.rowHeightDp * d).toInt()
+                    // Detail rows show the WHOLE file name, so long names wrap and the row must
+                    // grow with them. List rows keep the fixed ES row height.
+                    height = if (viewMode.kind == ViewKind.DETAIL) {
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    } else {
+                        (s.rowHeightDp * d).toInt()
+                    }
                 }
             }
             tvName.textSize = s.textSp

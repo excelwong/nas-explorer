@@ -48,9 +48,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:textSize="@dimen/text_title"
-            android:textStyle="bold"
-            android:ellipsize="middle"
-            android:singleLine="true" />
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tvType"

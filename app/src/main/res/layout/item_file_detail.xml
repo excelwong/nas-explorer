@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Detail view: name (never squeezed to zero width) + type / size / date columns. -->
+<!-- Detail view: full file name (wraps onto as many lines as needed) + type / size / date
+     columns. The row grows with the name instead of clipping it. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="horizontal"
     android:gravity="center_vertical"
     android:background="@color/white"
     android:layout_width="match_parent"
-    android:layout_height="54dp"
+    android:layout_height="wrap_content"
+    android:minHeight="54dp"
     android:paddingStart="12dp"
     android:paddingEnd="6dp">
 
@@ -15,7 +17,8 @@
         android:gravity="center_vertical"
         android:background="?attr/selectableItemBackground"
         android:layout_width="0dp"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
         android:layout_weight="1"
         android:minWidth="0dp">
 
@@ -34,11 +37,11 @@
             android:layout_weight="1"
             android:minWidth="100dp"
             android:layout_marginStart="8dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
             android:text="文件名"
             android:textColor="@color/text_primary"
-            android:textSize="13sp"
-            android:ellipsize="middle"
-            android:singleLine="true" />
+            android:textSize="13sp" />
 
         <TextView
             android:id="@+id/tvNew"
